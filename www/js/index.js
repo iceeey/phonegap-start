@@ -16,34 +16,89 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+Number.prototype.toRad = function() { return this * (Math.PI / 180); };
+
 var app = {
     // Application Constructor
     initialize: function() {
-        this.bindEvents();
+        app.bindEvents();
     },
     // Bind Event Listeners
     //
     // Bind any events that are required on startup. Common events are:
     // 'load', 'deviceready', 'offline', and 'online'.
     bindEvents: function() {
-        document.addEventListener('deviceready', this.onDeviceReady, false);
+        document.addEventListener('deviceready', app.onDeviceReady, false);
     },
     // deviceready Event Handler
     //
-    // The scope of 'this' is the event. In order to call the 'receivedEvent'
+    // The scope of 'app' is the event. In order to call the 'receivedEvent'
     // function, we must explicity call 'app.receivedEvent(...);'
     onDeviceReady: function() {
-        app.receivedEvent('deviceready');
+	alert('ready!');
+	app.updateGPSLocation();
     },
-    // Update DOM on a Received Event
-    receivedEvent: function(id) {
-        var parentElement = document.getElementById(id);
-        var listeningElement = parentElement.querySelector('.listening');
-        var receivedElement = parentElement.querySelector('.received');
 
-        listeningElement.setAttribute('style', 'display:none;');
-        receivedElement.setAttribute('style', 'display:block;');
+    totalDistance: 0,
+    lastPosition: null,
+    
+    // onSuccess Callback
+    // This method accepts a Position object, which contains the
+    // current GPS coordinates
+    //
+    onSuccess: function(position) {
+	var distance = 0;
 
-        console.log('Received Event: ' + id);
-    }
+	if (app.lastPosition != null) {
+	  var lat1 = app.lastPosition.coords.latitude;
+	  var lon1 = app.lastPosition.coords.longitude;
+	  var lat2 = position.coords.latitude;
+	  var lon2 = position.coords.longitude;
+
+	  distance = app.calcDistance(lat1, lon1, lat2, lon2);
+	}
+
+	app.totalDistance += distance;
+
+	$('#distance').html(app.totalDistance);
+// 		$('#footer').html(position.coords.longitude + ' ' + position.coords.latitude + '<br/>' + distance);
+	
+	app.lastPosition = position;
+	/*alert('Latitude: '          + position.coords.latitude          + '\n' +
+	      'Longitude: '         + position.coords.longitude         + '\n' +
+	      'Altitude: '          + position.coords.altitude          + '\n' +
+	      'Accuracy: '          + position.coords.accuracy          + '\n' +
+	      'Altitude Accuracy: ' + position.coords.altitudeAccuracy  + '\n' +
+	      'Heading: '           + position.coords.heading           + '\n' +
+	      'Speed: '             + position.coords.speed             + '\n' +
+	      'Timestamp: '         + position.timestamp                + '\n');*/
+	
+	window.setTimeout(app.updateGPSLocation, 1000);
+    },
+
+    // onError Callback receives a PositionError object
+    //
+    onError: function(error) {
+	alert('code: '    + error.code    + '\n' +
+	      'message: ' + error.message + '\n');
+    },
+
+    updateGPSLocation: function() {
+	console.log('requesting GPS position');
+	navigator.geolocation.getCurrentPosition(app.onSuccess, app.onError, {maximumAge: 3000, timeout: 5000, enableHighAccuracy: true});
+    },
+    
+    calcDistance: function (lat1, lon1, lat2, lon2) {
+	var R = 6371; // km
+	var dLat = (lat2-lat1).toRad();
+	var dLon = (lon2-lon1).toRad();
+	var lat1 = lat1.toRad();
+	var lat2 = lat2.toRad();
+
+	var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+		Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2); 
+	var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+	var d = R * c;
+	return d;
+    },
 };
